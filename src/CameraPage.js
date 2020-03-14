@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Text, View, StyleSheet, TouchableOpacity, ImageBackground, Dimensions } from 'react-native'
+import { Text, View, StyleSheet, TouchableOpacity, ImageBackground, Dimensions, ActivityIndicator } from 'react-native'
 import { RNCamera } from 'react-native-camera';
 
 var faceIdOne = null;
@@ -19,7 +19,8 @@ export default class CameraPage extends Component {
         this.state = {
             imageOneSeted: null,
             imageTwoSeted: null,
-            faceResult: ''
+            faceResult: '',
+            loading: 0
         }
     }
 
@@ -27,7 +28,8 @@ export default class CameraPage extends Component {
         var imageOne = this.state.imageOneSeted
         var imageTwo = this.state.imageTwoSeted
         var faceResult = this.state.faceResult
-
+        var opacityMessage = faceResult != '' ? 0.5 : 0 
+        var loading = this.state.loading
         return (
             <View style={styles.content}>
                 <RNCamera
@@ -50,19 +52,22 @@ export default class CameraPage extends Component {
                                 width: window.width,
                                 height: 70,
                                 alignItems: 'center',
-                                justifyContent: 'space-around'
+                                justifyContent: 'space-around',
+                                backgroundColor: 'black'
                             }}
-                            source={require('./imgs/circuitos.jpg')}
                         >
                             <Text style={{ opacity: 4.0, fontSize: 24, color: '#ffffff', fontWeight: 'bold' }}>
                                 App reconhecimento facial
                             </Text>
                         </ImageBackground>
                     </View>
-                    <View style={{ flex: 0.5, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{ flex: 0.5, justifyContent: 'center', alignItems: 'center', borderRadius: 20, margin: 5, opacity: opacityMessage, backgroundColor: '#000000' }}>
                         <Text style={{ color: 'white', fontSize: 34 }}>
                             { faceResult }
                         </Text>
+                    </View>
+                    <View style={{ opacity: loading }}>
+                        <ActivityIndicator size="large" color="cyan" />
                     </View>
                     <View style={{ flexDirection: 'row', alignSelf: 'center' }}>
                         <ImageBackground style={{
@@ -99,8 +104,6 @@ export default class CameraPage extends Component {
             const localFile = await fetch(data.uri);
             const fileBlob = await localFile.blob();
 
-            console.log("OK1 ",localFile)
-            console.log("OK2 ",data.uri)
             if(self.state.imageOneSeted == null){
                 self.setState({ imageOneSeted: data.uri })
 
@@ -116,14 +119,13 @@ export default class CameraPage extends Component {
                 .then((responseJson) => {
                     try{
                         faceIdOne = responseJson[0].faceId
-                    }catch(e){}
-                    //console.warn(responseJson)
+                    }catch(e){faceIdOne = null}
                 })
                 .catch((error) => {
-                //console.error(error);
                 });
 
             }else if(self.state.imageTwoSeted == null){
+                this.setState({ loading: 1 })
                 self.setState({ imageTwoSeted: data.uri })
 
                 fetch(apiURL, {
@@ -138,12 +140,10 @@ export default class CameraPage extends Component {
                 .then((responseJson) => {
                     try{
                         faceIdTwo = responseJson[0].faceId
-                    }catch(e){}
-                    //console.warn(faceIdTwo)
+                    }catch(e){faceIdTwo = null}
                     this.verifyPerson()
                 })
                 .catch((error) => {
-                //console.error(error);
                 });
 
             }else{
@@ -158,7 +158,8 @@ export default class CameraPage extends Component {
     verifyPerson = () => {
         var self = this
         if(faceIdOne == null || faceIdTwo == null){
-            self.setState({ faceResult: "Pessoas diferentes" })
+            self.setState({ faceResult: "ERRO" })
+            self.setState({ loading: 0 })
         }else{
             fetch('https://westcentralus.api.cognitive.microsoft.com/face/v1.0/verify', {
                 method: 'POST',
@@ -173,19 +174,16 @@ export default class CameraPage extends Component {
             })
             .then((response) => response.json())
             .then((responseJson) => {
-                //console.warn(responseJson)
                 if(responseJson.isIdentical){
-                    //console.warn("Mesma pessoa")
-                    self.setState({ faceResult: "Mesma pessoa" })
+                    self.setState({ faceResult: "Positivo!" })
                 }else{
-                    //console.warn("Pessoas diferentes")
-                    self.setState({ faceResult: "Pessoas diferentes" })
+                    self.setState({ faceResult: "Negativo!" })
                 }
+                self.setState({ loading: 0 })
             })
             .catch((error) => {
-                self.setState({ faceResult: "Pessoas diferentes" })
-                //console.warn("Pessoas diferentes")
-                //console.error(error);
+                self.setState({ faceResult: "ERRO" })
+                self.setState({ loading: 0 })
             });
         }
         
